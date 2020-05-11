@@ -1,5 +1,5 @@
 // MWLib
-// Copyright (c) 2007–2008  Petr Kadlec <mormegil@centrum.cz>
+// Copyright (c) 2007â€“2008  Petr Kadlec <mormegil@centrum.cz>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by

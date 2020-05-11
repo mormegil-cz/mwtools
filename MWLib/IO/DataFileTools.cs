@@ -48,6 +48,11 @@ namespace MWLib.IO
             XML = 2,
 
             /// <summary>
+            /// ASCII text
+            /// </summary>
+            Text = 3,
+            
+            /// <summary>
             /// GZipped data
             /// </summary>
             GZip = 101,
@@ -69,13 +74,13 @@ namespace MWLib.IO
             {
                 using (var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, 8))
                 {
-                    int b1, b2;
-                    b1 = stream.ReadByte();
-                    b2 = stream.ReadByte();
+                    var b1 = stream.ReadByte();
+                    var b2 = stream.ReadByte();
                     if (b1 == 31 && b2 == 139) return FileType.GZip;
                     if (b1 == 0x37 && b2 == 0x7a) return FileType.SevenZip;
                     if (b1 == 0x2d && b2 == 0x2d) return FileType.SQL;
                     if (b1 == 0x3c && b2 == 0x6d) return FileType.XML;
+                    if (b1 >= 32 && b1 < 127 && b2 >= 32 && b2 < 127) return FileType.Text;
                     return FileType.None;
                 }
             }
@@ -141,6 +146,7 @@ namespace MWLib.IO
                             throw;
                         }
 
+                    case FileType.Text:
                     case FileType.SQL:
                     case FileType.XML:
                         return new FileStream(fname, FileMode.Open, FileAccess.Read, FileShare.Read);

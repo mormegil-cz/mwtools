@@ -21,6 +21,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using MWLib;
@@ -260,6 +261,8 @@ namespace CatBrowser
 
         internal Dictionary<Page, HashSet<Page>> ArticlesLinkingToArticle;
 
+        internal Dictionary<Page, int> PageViews = new Dictionary<Page, int>();
+
         private readonly string filenameBase;
 
         public event EventHandler<FileLoadNotificationEventArgs> Error;
@@ -318,7 +321,21 @@ namespace CatBrowser
             fileReader = null;
         }
 
+        private void LoadSpaceSeparatedFile(string filename, EventHandler<RowEventArgs> processEntryDelegate)
+        {
+            if (processEntryDelegate == null) throw new ArgumentNullException("processEntryDelegate");
+            using (var streamReader = new CountingStreamReader(filename, DataFileTools.OpenInputFile(filename), Encoding.UTF8))
+            {
+                fileReader = streamReader;
+                var reader = new SpaceSeparatedFileParser(streamReader);
+                reader.RowComplete += processEntryDelegate;
+                reader.Parse();
+            }
+            fileReader = null;
+        }
+
         private static HashSet<Category> processedCategories;
+
         private static void CategoryWalk(Category rootCat, EventHandler<PageEventArgs> processPage)
         {
             if (rootCat == null) throw new ArgumentNullException("rootCat");
@@ -405,6 +422,7 @@ namespace CatBrowser
         }
 
         private bool catLinksLoaded;
+
         public void LoadCatLinks()
         {
             if (catLinksLoaded) return;
@@ -415,6 +433,7 @@ namespace CatBrowser
         }
 
         private bool templateLinksLoaded;
+
         public void LoadTemplateLinks()
         {
             if (templateLinksLoaded) return;
@@ -425,6 +444,7 @@ namespace CatBrowser
         }
 
         private bool pageLinksLoaded;
+
         public void LoadPageLinks()
         {
             if (pageLinksLoaded) return;
@@ -435,6 +455,7 @@ namespace CatBrowser
         }
 
         private bool extLinksLoaded;
+
         public void LoadExtLinks()
         {
             if (extLinksLoaded) return;
@@ -442,6 +463,36 @@ namespace CatBrowser
             LoadSqlFile(filenameBase + "externallinks", AddExternalLink);
             OnLoadProgress("External links loaded");
             extLinksLoaded = true;
+        }
+
+        private bool pageViewsLoaded;
+
+        public void LoadPageViews(HashSet<string> projectIds)
+        {
+            if (pageViewsLoaded) return;
+            OnLoadProgress("Loading page views");
+
+            foreach (var pageViewFile in Directory.GetFiles(filenameBase + @"pageviews"))
+            {
+                LoadSpaceSeparatedFile(pageViewFile, (_, args) =>
+                {
+                    if (projectIds.Contains(args.Columns[0]))
+                    {
+                        var title = ParseTitle(args.Columns[1]);
+                        Page page;
+                        if (!PagesByName.TryGetValue(title, out page))
+                        {
+                            OnWarning("Unknown page '" + title + "'");
+                            return;
+                        }
+                        int currViews;
+                        PageViews.TryGetValue(page, out currViews);
+                        PageViews[page] = currViews + Int32.Parse(args.Columns[2], CultureInfo.InvariantCulture);
+                    }
+                });
+            }
+            OnLoadProgress("Page views loaded");
+            pageViewsLoaded = true;
         }
 
         public BrowserEngine(string filenameBase)
@@ -461,6 +512,7 @@ namespace CatBrowser
         }
 
         private bool baseDataLoaded;
+
         public void Load()
         {
             if (baseDataLoaded) return;
@@ -489,7 +541,7 @@ namespace CatBrowser
                 }
                 else
                 {
-                    ns = (Namespace)Enum.Parse(typeof(Namespace), nsstr.Replace(' ', '_'), true);
+                    ns = (Namespace) Enum.Parse(typeof(Namespace), nsstr.Replace(' ', '_'), true);
                 }
                 if (title.Length == 0) throw new FormatException("Invalid title");
             }
@@ -541,17 +593,17 @@ namespace CatBrowser
             processedCategories = new HashSet<Category>();
             var duplicatePages = new HashSet<Page>();
             CategoryWalk(category, delegate(object sender, PageEventArgs eventArgs)
-                                       {
-                                           Page page = eventArgs.Page;
-                                           if (processedPages.Contains(page))
-                                           {
-                                               duplicatePages.Add(page);
-                                           }
-                                           else
-                                           {
-                                               processedPages.Add(page);
-                                           }
-                                       });
+            {
+                Page page = eventArgs.Page;
+                if (processedPages.Contains(page))
+                {
+                    duplicatePages.Add(page);
+                }
+                else
+                {
+                    processedPages.Add(page);
+                }
+            });
             return duplicatePages;
         }
 
@@ -588,13 +640,13 @@ namespace CatBrowser
                     return PagesInNamespace(sel.Namespace, universalSet);
 
                 case Selector.SelectorType.InsideCategory:
-                    return PagesInsideCategory((Category)sel.GetPage(this));
+                    return PagesInsideCategory((Category) sel.GetPage(this));
 
                 case Selector.SelectorType.InCategoryRegExp:
                     return PagesInCategoryRegExp(sel.Name);
 
                 case Selector.SelectorType.DuplicateWithinCategory:
-                    return PagesDuplicateWithinCategory((Category)sel.GetPage(this));
+                    return PagesDuplicateWithinCategory((Category) sel.GetPage(this));
 
                 case Selector.SelectorType.LinkingToTemplate:
                     return PagesLinkingToTemplate(sel.GetPage(this), universalSet);
@@ -670,6 +722,7 @@ namespace CatBrowser
             {
                 get { return result; }
             }
+
             private List<List<Category>> result = new List<List<Category>>();
 
             public CategoryCycleDetector(Category rootCategory)
@@ -778,10 +831,10 @@ namespace CatBrowser
                     dist[i, j] = -1;
                 }
             }
-            for(var i = 0; i < n; ++i)
+            for (var i = 0; i < n; ++i)
             {
                 var page = pages[i];
-                var w = (sbyte)(page.IsRedirect ? 1 : 0);
+                var w = (sbyte) (page.IsRedirect ? 1 : 0);
                 foreach (var link in page.InternalLinks)
                 {
                     int linkIdx;
@@ -807,7 +860,7 @@ namespace CatBrowser
                             var dij = dist[i, j];
                             if (dij < 0 || dij > dik + dkj)
                             {
-                                dist[i, j] = (sbyte)(dik + dkj);
+                                dist[i, j] = (sbyte) (dik + dkj);
                                 next[i, j] = next[i, k];
                             }
                         }
@@ -861,7 +914,7 @@ namespace CatBrowser
             var max = 0;
             var pages = new List<Page>();
             queue.Enqueue(destination);
-            processed.Add(destination, new PathVertexInfo {Depth = 0, From = null});
+            processed.Add(destination, new PathVertexInfo { Depth = 0, From = null });
             while (queue.Count > 0)
             {
                 var page = queue.Dequeue();
@@ -883,7 +936,7 @@ namespace CatBrowser
                         if (!processed.ContainsKey(link))
                         {
                             queue.Enqueue(link);
-                            processed.Add(link, new PathVertexInfo {Depth = link.IsRedirect ? depth : depth + 1, From = page});
+                            processed.Add(link, new PathVertexInfo { Depth = link.IsRedirect ? depth : depth + 1, From = page });
                         }
                     }
                 }
@@ -913,11 +966,11 @@ namespace CatBrowser
             LoadPageLinks();
 
             var redLinks = new Dictionary<string, int>();
-            foreach(var page in PagesById.Values)
+            foreach (var page in PagesById.Values)
             {
                 if (page.Namespace != Namespace.Main) continue;
 
-                foreach(var linked in page.InternalLinks)
+                foreach (var linked in page.InternalLinks)
                 {
                     if (linked.Namespace != Namespace.Main) continue;
                     if (linked.Id < 0)
@@ -977,6 +1030,7 @@ namespace CatBrowser
         }
 
         private static HashSet<Page> processedPages;
+
         private static void ProcessPageInResult(object sender, PageEventArgs eventArgs)
         {
             Page page = eventArgs.Page;
@@ -987,9 +1041,9 @@ namespace CatBrowser
         {
             IList<string> columns = eventArgs.Columns;
             if (columns.Count != 13) throw new FormatException("Column count mismatch");
-                
+
             int id = Convert.ToInt32(columns[0], CultureInfo.InvariantCulture);
-            Namespace ns = (Namespace)Convert.ToInt32(columns[1], CultureInfo.InvariantCulture);
+            Namespace ns = (Namespace) Convert.ToInt32(columns[1], CultureInfo.InvariantCulture);
             string title = columns[2];
             /*
             string restrictions = columns[3];
@@ -1043,7 +1097,7 @@ namespace CatBrowser
                 PagesByName.Add(new Pair<Namespace, string>(Namespace.Category, to), toPage);
                 OnNotice(String.Format("Missing category {1} (requested by {0})", fromPage, to));
             }
-            Category category = (Category)toPage;
+            Category category = (Category) toPage;
             fromPage.Categories.Add(category);
 
             Category fromCategory = fromPage as Category;
@@ -1054,12 +1108,13 @@ namespace CatBrowser
         private void AddTemplateLink(object sender, RowEventArgs eventArgs)
         {
             IList<string> columns = eventArgs.Columns;
-            if (columns.Count != 3) throw new FormatException("Column count mismatch");
+            if (columns.Count != 4) throw new FormatException("Column count mismatch");
 
             int from = Convert.ToInt32(columns[0], CultureInfo.InvariantCulture);
-            Namespace ns = (Namespace)Convert.ToInt32(columns[1], CultureInfo.InvariantCulture);
-            string title = columns[2];
-
+            Namespace ns = (Namespace) Convert.ToInt32(columns[1], CultureInfo.InvariantCulture);
+            string title = columns[2]; 
+            // var fromNs = (Namespace) Convert.ToInt32(columns[3], CultureInfo.InvariantCulture);
+                
             Page fromPage, toPage;
             if (!PagesById.TryGetValue(from, out fromPage))
             {
@@ -1082,7 +1137,7 @@ namespace CatBrowser
             if (columns.Count != 4) throw new FormatException("Column count mismatch");
 
             int from = Convert.ToInt32(columns[0], CultureInfo.InvariantCulture);
-            Namespace ns = (Namespace)Convert.ToInt32(columns[1], CultureInfo.InvariantCulture);
+            Namespace ns = (Namespace) Convert.ToInt32(columns[1], CultureInfo.InvariantCulture);
             string title = columns[2];
             //Namespace fromNs = (Namespace)Convert.ToInt32(columns[3], CultureInfo.InvariantCulture);
 

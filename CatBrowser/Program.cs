@@ -94,7 +94,7 @@ namespace CatBrowser.UI
 
             if (fixupFile != null)
             {
-                using(var reader = new StreamReader(fixupFile, Encoding.UTF8))
+                using (var reader = new StreamReader(fixupFile, Encoding.UTF8))
                 {
                     fixups = new CategoryFixups(reader);
                 }
@@ -159,7 +159,7 @@ namespace CatBrowser.UI
                     Console.WriteLine("No such category");
                     return true;
                 }
-                var cat = (Category)page;
+                var cat = (Category) page;
                 Console.WriteLine("ID = {0}", page.Id);
                 Console.Write("Categories: ");
                 bool first = true;
@@ -250,11 +250,11 @@ namespace CatBrowser.UI
                         int nsint;
                         if (Int32.TryParse(name, out nsint))
                         {
-                            ns = (Namespace)nsint;
+                            ns = (Namespace) nsint;
                         }
                         else
                         {
-                            ns = (Namespace)Enum.Parse(typeof(Namespace), name.Replace(' ', '_'), true);
+                            ns = (Namespace) Enum.Parse(typeof(Namespace), name.Replace(' ', '_'), true);
                         }
                     }
                     catch (ArgumentException)
@@ -492,7 +492,7 @@ namespace CatBrowser.UI
                     return true;
                 }
 
-                List<List<Category>> cycles = engine.FindCategoryCycles((Category)page);
+                List<List<Category>> cycles = engine.FindCategoryCycles((Category) page);
                 int lastCount = -1;
                 foreach (List<Category> cycle in cycles.OrderBy(c => c.Count))
                 {
@@ -564,9 +564,51 @@ namespace CatBrowser.UI
                     }
                 }
             }
+            else if (cmd0 == "popular")
+            {
+                string limitStr, projectNames;
+                if (split.Length < 2)
+                {
+                    Console.Write("Limit: ");
+                    limitStr = Console.ReadLine();
+                }
+                else
+                {
+                    limitStr = split[1];
+                }
+                if (split.Length < 3)
+                {
+                    Console.Write("Project names: ");
+                    projectNames = Console.ReadLine();
+                }
+                else
+                {
+                    projectNames = String.Join(" ", split.Skip(2));
+                }
+                int limit = Int32.Parse(limitStr);
+                engine.LoadPageViews(new HashSet<string>(projectNames.Split(' ')));
+
+                var outputList = new SortedDictionary<Pair<int, string>, string>();
+                foreach (Page page in engine)
+                {
+                    int views;
+                    var title = page.ToString();
+                    engine.PageViews.TryGetValue(page, out views);
+                    outputList[new Pair<int, string>(-views, title)] = title;
+                }
+                int count = 0;
+                foreach (var key in outputList.Keys)
+                {
+                    if (limit > 0 && ++count > limit || key.First == 0) break;
+                    var title = outputList[key];
+                    string t = title;
+                    if (transformRegex != null) t = transformRegex.Replace(t, transformReplacement);
+                    Console.WriteLine("{0}: {1}", -key.First, t);
+                }
+            }
             else if (command == "help")
             {
-                Console.WriteLine("Known commands: quit, page, category, +, -, ~, *, =, ?, list, count, set, get, vars, cycles, transform, sort");
+                Console.WriteLine("Known commands: quit, page, category, +, -, ~, *, =, ?, list, count, set, get, vars, cycles, furthestfrom, longestpaths, wantedarticles, popular, transform, sort");
             }
             else
             {
@@ -590,6 +632,7 @@ namespace CatBrowser.UI
         }
 
         private bool catLinksLoaded;
+
         private void LoadCatLinks()
         {
             if (catLinksLoaded) return;

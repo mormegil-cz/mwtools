@@ -176,7 +176,7 @@ namespace MWLib
         {
             if (full == null) throw new ArgumentNullException("full");
 
-            // remove initial colon (for cases like ì:Category:Foobarî)
+            // remove initial colon (for cases like ‚Äú:Category:Foobar‚Äù)
             if (full.StartsWith(":")) full = full.Substring(1);
 
             int colon = full.IndexOf(':');
@@ -188,7 +188,7 @@ namespace MWLib
                     title = full;
                     return;
                 case 0:
-                    // should not happen, really, means something like ì::Foobarî
+                    // should not happen, really, means something like ‚Äú::Foobar‚Äù
                     ns = Namespace.Main;
                     title = full.Substring(1);
                     return;

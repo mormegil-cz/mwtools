@@ -72,9 +72,8 @@ namespace MWLib
         /// </returns>
         public override bool Equals(object obj)
         {
-            Pair<T1, T2> other = obj as Pair<T1, T2>;
-            if (other == null) return base.Equals(obj);
-            else return Equals(other);
+            var other = obj as Pair<T1, T2>;
+            return other != null && Equals(other);
         }
 
         /// <summary>

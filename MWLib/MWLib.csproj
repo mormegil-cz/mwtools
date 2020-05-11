@@ -12,7 +12,7 @@
     <AssemblyName>MWLib</AssemblyName>
     <SignAssembly>false</SignAssembly>
     <AssemblyOriginatorKeyFile>MWLib.pfx</AssemblyOriginatorKeyFile>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
@@ -39,7 +39,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;NUNIT</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;xNUNIT</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
@@ -80,6 +80,7 @@
     <Compile Include="IO\CountingStreamReader.cs" />
     <Compile Include="IO\DataFileTools.cs" />
     <Compile Include="IO\PageDataReaderAdapter.cs" />
+    <Compile Include="IO\SpaceSeparatedFileParser.cs" />
     <Compile Include="IO\ReaderAdapter.cs" />
     <Compile Include="IO\SevenZipFileStream.cs" />
     <Compile Include="IO\TableReaderAdapter.cs" />
